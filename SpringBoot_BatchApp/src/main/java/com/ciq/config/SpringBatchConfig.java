@@ -5,6 +5,9 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.job.builder.FlowJobBuilder;
+import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.LineMapper;
@@ -22,24 +25,39 @@ import com.ciq.entity.Customer;
 import com.ciq.processor.CustomerProcessor;
 import com.ciq.repository.CustomerRepository;
 
+import io.micrometer.common.lang.NonNullApi;
+import io.micrometer.common.lang.NonNullFields;
 import lombok.AllArgsConstructor;
 
+@SuppressWarnings({ "removal", "unused" })
 @Configuration
 @EnableBatchProcessing
 @AllArgsConstructor
 public class SpringBatchConfig {
 
-	@SuppressWarnings("removal")
 	@Autowired
-	private  final JobBuilderFactory jobBuilderFactory;
-	@SuppressWarnings("removal")
+	private final JobBuilder jobBuilder;
+
+	@SuppressWarnings("deprecation")
+	@Bean
+	public FlowJobBuilder job(Step step) {
+		return this.jobBuilder.getClass().cast(step).flow(step).build();
+	}
+
 	@Autowired
-	private final StepBuilderFactory stepBuilderFactory;
+	private final StepBuilder stepBuilder;
+
+//	@SuppressWarnings("deprecation")
+//	@Bean
+//	public Job job1(Step step) {
+//		return this.stepBuilderFactory.get("myJob").job(step).build();
+//	}
+
 	@Autowired
 	private CustomerRepository customerRepository;
 
-    @Bean
-    FlatFileItemReader<Customer> customerReader() {
+	@Bean
+	FlatFileItemReader<Customer> customerReader() {
 		FlatFileItemReader<Customer> itemReader = new FlatFileItemReader<>();
 		itemReader.setResource(new FileSystemResource("src/main/resources/customers.csv"));
 		itemReader.setName("csv-reader");
@@ -66,13 +84,13 @@ public class SpringBatchConfig {
 		return lineMapper;
 	}
 
-    @Bean
-    CustomerProcessor customerProcessor() {
+	@Bean
+	CustomerProcessor customerProcessor() {
 		return new CustomerProcessor();
 	}
 
-    @Bean
-    RepositoryItemWriter<Customer> customerWriter() {
+	@Bean
+	RepositoryItemWriter<Customer> customerWriter() {
 
 		RepositoryItemWriter<Customer> writer = new RepositoryItemWriter<>();
 		writer.setRepository(customerRepository);
@@ -81,21 +99,19 @@ public class SpringBatchConfig {
 		return writer;
 	}
 
-    @SuppressWarnings({"removal"})
-    @Bean
-    Step step() {
-		return stepBuilderFactory.get("step-1").<Customer, Customer>chunk(10).reader(customerReader())
+	@Bean
+	Step step() {
+		return stepBuilder.getClass().<Customer,Integer>.reader(customerReader())
 				.processor(customerProcessor()).writer(customerWriter()).taskExecutor(taskExecutor()).build();
 	}
 
-    @SuppressWarnings({"deprecation"})
-    @Bean
-    Job job() {
-		return jobBuilderFactory.get("customers-import").flow(step()).end().build();
+	@Bean
+	Job job() {
+		return (Job) jobBuilder.getClass().arrayType();
 	}
 
-    @Bean
-    TaskExecutor taskExecutor() {
+	@Bean
+	TaskExecutor taskExecutor() {
 		SimpleAsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
 		taskExecutor.setConcurrencyLimit(10);
 		return taskExecutor;

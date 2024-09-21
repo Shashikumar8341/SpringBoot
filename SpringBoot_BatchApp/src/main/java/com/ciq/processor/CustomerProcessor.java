@@ -2,6 +2,7 @@ package com.ciq.processor;
 
 import org.springframework.batch.item.ItemProcessor;
 
+
 import com.ciq.entity.Customer;
 
 public class CustomerProcessor implements ItemProcessor<Customer, Customer> {
